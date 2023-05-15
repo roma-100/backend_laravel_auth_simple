@@ -13,7 +13,7 @@ use App\Http\Controllers\UserController;
 /* ============ Start Public Routes ================= */
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-
+Route::post('/delete_user/{id}', [AuthController::class, 'delete_user']);
 
 
 Route::get('/operations', [OperationController::class, 'index']);
@@ -35,6 +35,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('/user/list',[UserController::class, 'list']);
 
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/edit_user/{id}', [AuthController::class, 'edit_user']);
 
     Route::post('/operations', [OperationController::class, 'store']);
     Route::get('/operations/total', [OperationController::class, 'total']);
