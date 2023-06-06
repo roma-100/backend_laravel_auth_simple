@@ -13,10 +13,23 @@ class EditUserRequest extends FormRequest
         return [
             'name' => 'required|string',
             'email' => 'required|string|unique:users,email',
+            'position' => 'required|string',
+            'active' => 'required|boolean',
             'password' => 'required|string'
         ];
     }
+    protected function prepareForValidation()
+    {
+        $this->merge([
+            'active' => $this->toBoolean($this->get('active')),
+        ]);
+    }
 
+    private function toBoolean($booleable)
+    {
+        return filter_var($booleable, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+    }
+    
     public function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(response()->json([

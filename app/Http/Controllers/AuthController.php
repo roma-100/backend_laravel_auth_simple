@@ -11,9 +11,12 @@ use Illuminate\Support\Facades\Hash;
 class AuthController extends Controller
 {
 
-    public function register (Request $request) {
+    public function register (EditUserRequest $request) {
         $fields = $request->validate([
             'name' => 'required|string',
+            'position' => 'required|string',
+            'active' => 'required|boolean',
+            'role' => 'required|string',
             'email' => 'required|string|unique:users,email',
             'password' => 'required|string|confirmed'
         ]);
@@ -21,6 +24,9 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $fields['name'],
             'email' => $fields['email'],
+            'position' => $request['position'],
+            'role' => $request['role'],
+            'active' => $request['active'],
             'password' => bcrypt($fields['password'])
         ]);
 
@@ -36,12 +42,13 @@ class AuthController extends Controller
     }
 
     public function edit_user (EditUserRequest $request, $id) {
-
-        
         if ($id > 1) {  
          $user = User::find($id)->update([
             'name' => $request['name'],
             'email' => $request['email'],
+            'position' => $request['position'],
+            'role' => $request['role'],
+            'active' => $request['active'],
             'password' => bcrypt($request['password'])
         ]);
 

@@ -13,4 +13,11 @@ class UserController extends Controller
         
         return $users;
     }
+
+    public function list_active_users() {
+ /* where('mk_list_id', $mk_list_id) */
+        $users = User::select('id', 'name', 'position')->where('active', true)->orderBy('id', 'asc')->get();
+        
+        return $users;
+    }
 }
