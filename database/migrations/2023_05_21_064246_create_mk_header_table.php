@@ -15,7 +15,7 @@ class CreateMkHeaderTable extends Migration
     {
         Schema::create('mk_list', function (Blueprint $table) {
             $table->id();
-            $table->string('type')->default('КГ');; //КГ или КРезотатор
+            $table->integer('user_id');
             $table->string('name'); //23-153
             $table->text('decsription'); //23-153
             $table->integer('quantity'); //

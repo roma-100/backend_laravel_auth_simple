@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 /* use App\Http\Requests\EditUserRequest; */
+
+use Illuminate\Support\Facades\DB;
 use App\Models\MkStep;
 use Illuminate\Http\Request;
 use App\Http\Requests\EditMkStepRequest;
@@ -18,10 +20,24 @@ class MkStepController extends Controller
      */
     public function mk_step_show($mk_list_id)
     {
-        /* $finder = MkStep::find($mk_list_id); */
-        $finder = MkStep::whereIn('mk_list_id', [$mk_list_id])->orderBy('step_num', 'asc')->get();
+        $subquery1 = DB::table('mk_user_state_steps')
+        ->select(['mk_list_id', 'step_num', 'handle', 'passed', 'failed', 
+        DB::raw("
+        IF (handle + passed + failed = 0, true, false) as is_allow_delete
+        ")]);
 
-        if (empty($finder)) {
+        /* IF (stat_users IS NULL OR stat_steps IS NULL, false, true)
+        $finder = MkStep::find($mk_list_id); , 'handle', 'passed', 'failed' , DB::raw('MIN(step_tx) as steps_tx')*/
+       // $finder = MkStep::whereIn('mk_list_id', [$mk_list_id])->orderBy('step_num', 'asc')->get();
+
+       $query = MkStep::select(['mk_steps.*', DB::raw("
+       tmp_passed as is_allow_delete
+       ")])
+        -> where('mk_steps.mk_list_id', '=', $mk_list_id)
+        ->get();
+
+        $result = $query;
+        if (empty($result)) {
             $response = [
                 "success" => false,
                 'message' => 'Null data'
@@ -30,17 +46,50 @@ class MkStepController extends Controller
         } else {
             $response = [
                 "success" => true,
-                'message' => $finder 
+                'message' => $result 
+            ];
+            return response($response, 201);
+        }
+    }
+
+    public function xd_mk_step_show($mk_list_id)
+    {
+        $subquery1 = DB::table('mk_user_state_steps')
+        ->select(['mk_list_id', 'step_num', 'handle', 'passed', 'failed', 
+        DB::raw("
+        IF (handle + passed + failed = 0, true, false) as is_allow_delete
+        ")]);
+
+        /* IF (stat_users IS NULL OR stat_steps IS NULL, false, true)
+        $finder = MkStep::find($mk_list_id); , 'handle', 'passed', 'failed' , DB::raw('MIN(step_tx) as steps_tx')*/
+       // $finder = MkStep::whereIn('mk_list_id', [$mk_list_id])->orderBy('step_num', 'asc')->get();
+
+       $query = MkStep::leftJoinSub($subquery1,'mk_user_state_steps',function($join){
+        $join->on('mk_steps.mk_list_id','=','mk_user_state_steps.mk_list_id')
+        ->on('mk_steps.step_num','=','mk_user_state_steps.step_num');
+        })
+        ->select(['mk_steps.*','is_allow_delete'])
+        -> where('mk_steps.mk_list_id', '=', $mk_list_id)
+        ->get();
+
+        $result = $query;
+        if (empty($result)) {
+            $response = [
+                "success" => false,
+                'message' => 'Null data'
+            ];
+            return response($response, 404);
+        } else {
+            $response = [
+                "success" => true,
+                'message' => $result 
             ];
             return response($response, 201);
         }
     }
 
 /* return Operation::find($id); */
-    public function index()
-    {
-        //
-    }
+
 
     /**
      * Store a newly created resource in storage.
@@ -50,16 +99,6 @@ class MkStepController extends Controller
      */
     public function store(Request $request)
     {
-        /* id // auto counter
-        mk_list_id 
-        step_num 
-        action 
-        description 
-        duration */
-
-        /* MkStep::create($request->all()); */
-        //$steps = MkStep::where('id', $request['id'])->update($request->all());
-
         //Duplicate test Errorr 409
         $duplicate = MkStep::where('mk_list_id', $request['mk_list_id']) ->
                     where('step_num', $request['step_num'])->count();
@@ -127,37 +166,6 @@ class MkStepController extends Controller
             ];
             return response($response, 201);
         }
-        //RRR09 it must be cleared
-        /* print_r($validator->errors()); */
-        /* return response($validator->errors(), 501); */
-        /* $this->validateWith($validator,$request); */
-
-        //Validation test
-/*         $fields = $request->validate([
-            'description' => 'required|string'
-        ]); */
-        /* $step = MkStep::where('id', $request['id'])->first(); */
-
-        //Find th record
-        /* $operation = MkStep::find($request['id']); */
-        /* $operation->update($fields->all()); */
-
-        /* $stepNum = $request['step_num']; */
-
-        /* $operation = MkStep::find($request['id']); */
-
-       /* print_r($fields); */
-/*        echo "<p> Look: ".$request['step_num']. "</p>";
-       echo "<p> Look: ".$step['description']. "</p>"; */
-       /* print_r($operation); */
-
-/*        $response = [
-        "success" => true,
-        'message' => 'ggg'
-        ]; */
-
-         /* return response($response, 201); */
-        /* return $request.step_num; */
     }
 
     /**
@@ -184,4 +192,101 @@ class MkStepController extends Controller
         return response($response, 404);          
         }
     }
+    
+    /* /mk_list_import_steps/{mk_list_id_rx}/{mk_list_id_tx}' */
+    public function mk_list_import_steps($mk_list_id_tx, $mk_list_id_rx)
+    {
+        /* Start testing mk_list_id_tx  */
+        $steps = MkStep::select( DB::raw('COUNT(mk_list_id) as count_steps'))
+        -> where('mk_list_id', $mk_list_id_tx);
+        //->value('count_steps');
+        
+        if ($steps->value('count_steps') == 0) {
+            $response = [
+                "success" => false,
+                'message' => 'Not Found mk_list_id_tx'
+            ];
+            return response($steps->get(), 404);
+        } 
+
+        /* End testing mk_list_id_tx  */
+
+        /* Delete  old mk_list_id_rx from steps*/
+        $result = MkStep::where('mk_list_id', $mk_list_id_rx)->delete();
+
+        /* Isert new data from another steps */
+        $result = MkStep::select(['step_num', 'action', 'description', 'duration', DB::raw($mk_list_id_rx . " as mk_list_id")])
+        -> where('mk_list_id', $mk_list_id_tx)
+        ->get()-> sortBy('step_num'); 
+
+        $data = json_decode(json_encode($result), true);
+
+        //Insert data to the table
+        $result = MkStep::insert($data);
+
+        $r =  $result;
+        if (empty($r)) {
+            $response = [
+                "success" => false,
+                'message' => 'Null data'
+            ];
+            return response($response, 404);
+        } else {
+            $response = [
+                "success" => true,
+                'message' => 'Steps imported'
+            ];
+            return response($response, 201);
+        }
+    }
+
+    public function mk_list_join_users_steps($mk_list_id)
+    {
+        //get join users date from mk_user_state_steps
+
+        $query_users_steps = DB::table('mk_user_state_steps')
+        -> select('mk_list_id', 'step_num', 
+                    DB::raw('SUM(handle) as sum_handle'), 
+                    DB::raw('SUM(passed) as sum_passed'), 
+                    DB::raw('SUM(failed) as sum_failed'),
+                    DB::raw('SUM(done) as sum_done'))
+        ->where('mk_list_id', $mk_list_id)
+        ->groupBy('mk_list_id','step_num');
+
+        $result = MkStep::leftJoinSub($query_users_steps,'mk_user_state_steps',function($join){
+            $join->on('mk_steps.mk_list_id','=','mk_user_state_steps.mk_list_id')
+            ->on('mk_steps.step_num','=','mk_user_state_steps.step_num');
+        })
+        ->where('mk_steps.mk_list_id', $mk_list_id)
+        ->select('mk_steps.*', 'sum_handle', 'sum_passed', 'sum_failed', 'sum_done')
+        //->get();
+        ->update(['tmp_handle' => DB::raw("IF (sum_handle IS NULL, 0, sum_handle)"),
+                  'tmp_passed' => DB::raw("IF (sum_passed IS NULL, 0, sum_passed)"),
+                  'tmp_failed' => DB::raw("IF (sum_failed IS NULL, 0, sum_failed)"),
+                  'tmp_done' => DB::raw("IF (sum_done IS NULL, 0, sum_done)"),
+        ]);
+
+        //echo "<pre>"; print_r($result); echo "</pre>";
+
+        // get fresh data steps
+        $result = MkStep::all()->sortBy('step_num')->where('mk_list_id', $mk_list_id);
+        //->sortBy('step_num')
+        //->get();
+        $r =  $result;
+        if (empty($r)) {
+            $response = [
+                "success" => false,
+                'message' => 'Error. The mk_list_id does not exist...'
+            ];
+            return response($response, 404);
+        } else {
+            $response = [
+                "success" => true,
+                'message' => $r 
+            ];
+            return response($response, 201);
+        }
+        
+    }
+
 }
