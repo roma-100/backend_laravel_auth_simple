@@ -93,8 +93,9 @@ class MkListController extends Controller
             DB::raw("
             IF (stat_sum_handle IS NULL AND stat_sum_passed IS NULL AND stat_sum_failed IS NULL, false, true) as is_mk_in_use
             ")]); */
-
-            $query = MkList::leftJoinSub($sub_team_users,'mk_teams',function($join){
+//->groupByRaw('city, state')
+            $query = MkList::orderBy('created_at', 'desc')
+            ->leftJoinSub($sub_team_users,'mk_teams',function($join){
                 $join->on('mk_lists.id','=','mk_teams.mk_list_id');
             })
             ->leftJoinSub($sub_steps,'mk_steps',function($join){
