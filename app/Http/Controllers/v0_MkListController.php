@@ -49,13 +49,12 @@ class MkListController extends Controller
         $sub_leaders = MkTeam::where('mk_list_id', $mk_list_id);
         
         
-        $users = User::select('users.id', 'users.name', 'users.position', 'users.role','user_id as leader', 'users.active')
+        $users = User::select('users.id', 'users.name', 'users.position', 'users.role','user_id as leader')
         ->leftJoinSub($sub_leaders,'mk_teams',function($join){
             $join->on('users.id','=','mk_teams.user_id');
         })
         ->where('users.id', '>', 1)
         ->where('users.role', 'user')
-        ->where('users.active', true)
         ->whereNull('mk_teams.user_id')
         ->orderBy('users.position')
         ->orderBy('users.name');
@@ -89,8 +88,7 @@ class MkListController extends Controller
         $sub_team_users = MkTeam::select('mk_list_id', DB::raw('COUNT(user_id) as stat_users'))
         ->groupBy('mk_list_id');
         // Analyse role of user 
-        $sub_team_user = MkTeam::select('mk_list_id', 'user_id', DB::raw('user_id as leader_id'))
-        ->where('user_id',$user_id);
+        $sub_team_user = MkTeam::select('mk_list_id', 'user_id');
 
         $sub_steps = MkStep::select('mk_list_id', DB::raw('COUNT(step_num) as stat_steps'))
         ->groupBy('mk_list_id');
@@ -98,24 +96,7 @@ class MkListController extends Controller
         $sub_steplers = MkStep::select('mk_list_id', DB::raw('COUNT(stepler_id) as count_stepler_id'))
         ->where('stepler_id', $user_id)
         ->groupBy('mk_list_id');
-//adddd 2------
-        $sub_steplers_step_handler = UserStepMove::select('mk_list_id', 'step_rx', DB::raw('SUM(items) as stepler_sum_items_step_rx'))
-        ->groupBy('mk_list_id')
-        ->groupBy('step_rx');
-        //join query
-        $sub_steps_stepler = MkStep::select('mk_steps.id', 'mk_steps.mk_list_id', 
-        'mk_steps.step_num', 'mk_steps.stepler_id', 'user_step_moves.step_rx', 
-        'user_step_moves.stepler_sum_items_step_rx',
-        DB::raw('mk_steps.stepler_id as found_stepler_id')
-        )
-        ->whereNotNull('stepler_id')
-        ->where('stepler_id', $user_id)
-        -> joinSub($sub_steplers_step_handler,'user_step_moves',function($join){
-            $join->on('mk_steps.mk_list_id','=','user_step_moves.mk_list_id')
-            ->on('mk_steps.step_num', '=', 'user_step_moves.step_rx');
-        });
 
-//end add 2
         $sub_moves = UserStepMove::select('mk_list_id', DB::raw('COUNT(mk_list_id) as stat_moves'))
         ->groupBy('mk_list_id');
 
@@ -155,20 +136,12 @@ class MkListController extends Controller
             ->leftJoinSub($sub_team_users,'mk_teams',function($join){
                 $join->on('mk_lists.id','=','mk_teams.mk_list_id');
             })
-            -> leftJoinSub($sub_team_user,'sub_team_user',function($join){ //user type test
-                $join->on('mk_lists.id','=','sub_team_user.mk_list_id');
-            })
             ->leftJoinSub($sub_steps,'mk_steps',function($join){
                 $join->on('mk_lists.id','=','mk_steps.mk_list_id');
             })
-//start stepler
             ->leftJoinSub($sub_steplers,'mk_steps_stepler',function($join){ //add
                 $join->on('mk_lists.id','=','mk_steps_stepler.mk_list_id');
             })
-            ->leftJoinSub($sub_steps_stepler,'sub_steps_stepler',function($join){ //add
-                $join->on('mk_lists.id','=','sub_steps_stepler.mk_list_id');
-            })
-//end stepler
             ->leftJoinSub($sub_moves,'user_step_moves',function($join){
                 $join->on('mk_lists.id','=','user_step_moves.mk_list_id');
             })
@@ -181,12 +154,8 @@ class MkListController extends Controller
 /*             ->leftJoinSub($sub_steplers,'mk_steps',function($join){//add
                 $join->on('mk_lists.id','=','mk_steps.mk_list_id');
             })   */          
-            ->select(['mk_lists.*','stat_users', 'stat_steps', 'stat_moves',
-            'stat_sum_handle', 'stat_sum_passed', 'stat_sum_failed', 
-            'mk_steps_stepler.count_stepler_id', 'stepler_sum_items_step_rx',// 'sub_steplers',
-            'leader_id', 
-                DB::raw('"'.$role.'" as info_user_role'),
-                DB::raw('IF (found_stepler_id IS NOT NULL , true, false) as info_is_it_stepler'),
+            ->select(['mk_lists.*','stat_users', 'stat_steps', 'stat_moves', 
+            'stat_sum_handle', 'stat_sum_passed', 'stat_sum_failed', 'mk_steps_stepler.count_stepler_id',// 'sub_steplers',
                 DB::raw("
                 IF (stat_users IS NULL OR stat_steps IS NULL, false, true) as is_team_and_steps
                 "),
@@ -197,17 +166,19 @@ class MkListController extends Controller
         if ($role == 'admin'){
             $result = $query-> get();
         } else {
-            // it was for leader only
-            //it is show for leders and active steplers
+            //RRR02 it was for leader only
             $result = $query
-            ->whereRaw('stepler_sum_items_step_rx IS NOT NULL OR leader_id IS NOT NULL')
+/*             -> joinSub($sub_team_user,'sub_team_user',function($join){
+                $join->on('mk_lists.id','=','sub_team_user.mk_list_id');
+            })
+            ->whereNull('count_stepler_id') //as stepler
+            -> orWhere('sub_team_user.user_id', $user_id) //as leader */
             -> get();
+/*             $result = $sub_steplers
+            ->get(); */
         } 
 
         $r =  $result;
-        //$r=$sub_steplers_step_handler->get();
-        //$r=$sub_steps_stepler->get();
-        //$r=$sub_steps_stepler->get();
         if (empty($r)) {
             $response = [
                 "success" => false,

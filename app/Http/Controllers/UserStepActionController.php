@@ -49,13 +49,211 @@ class UserStepActionController extends Controller
             return response($response, 201);
         }
     }    
+//============= START mk_stepler_state_steps_get_smart ===========
+//....
+//============= START mk_stepler_state_steps_get_smart ===========
+
+public function xd_mk_user_state_steps_get_smart2($mk_list_id, $user_id) //$mk_list_id, $user_id
+{
+    $isLeader = MkTeam::where('mk_list_id', $mk_list_id)
+    ->where('user_id', $user_id)
+    ->count();
+
+    $isStepler = MkStep::where('mk_list_id', $mk_list_id)
+    ->where('stepler_id', $user_id)
+    ->count();
+
+
+    echo $isLeader; echo "<br>";
+    echo $isStepler; echo "<br>";
+    if (!$isLeader && !$isStepler) {
+        echo 'Get away'; echo "<br>";
+    } else {
+        echo 'Welcome'; echo "<br>";
+    }
+    $r =  $isLeader;
+    //$r=$sub_steplers_step_handler->get();
+    //$r=$sub_steps_stepler->get();
+    if (empty($r)) {
+        $response = [
+            "success" => false,
+            'message' => 'Null data'
+        ];
+        return response($response, 404);
+    } else {
+        $response = [
+            "success" => true,
+            'message' => $r 
+        ];
+        return response($response, 201);
+    }
+
+}
+//===========================
+
+
 //=============== START mk_user_state_steps_get_smart ==========================
-    public function mk_user_state_steps_get_smart($mk_list_id, $user_id) //$mk_list_id, $user_id
+
+
+public function mk_user_state_steps_get_smart($mk_list_id, $leader_id, $caller_id) //$mk_list_id, $user_id
+{   
+    /* Algoritm:
+        if null data -> create table from table mk_steps
+        if no moves -> it is initial state -> hide all radiobutton except the first
+    */
+    //test type of user
+    //It allow to represent steps for leaders and steplers
+    $isLeader = MkTeam::where('mk_list_id', $mk_list_id)
+    ->where('user_id', $leader_id)
+    ->count();
+
+    $isStepler = MkStep::where('mk_list_id', $mk_list_id)
+    ->where('stepler_id', $caller_id)
+    ->count();
+
+    // Test a chance to get info 
+    if (!$isLeader && !$isStepler) {
+        $response = [
+            "success" => false,
+            'message' => 'Wrong Leader or Caller'
+        ];
+        return response($response, 400);
+    }
+
+
+/*         $isStepler = MkStep::where('mk_list_id', $mk_list_id)
+    ->where('stepler_id', $leader_id)
+    ->count();
+
+    if (!$isLeader && !$isStepler) {
+        $response = [
+            "success" => false,
+            'message' => 'Wrong User'
+        ];
+        return response($response, 400);
+    } */
+
+    $found = MkUserStateStep::where('mk_list_id', $mk_list_id) 
+    -> where('user_id', $leader_id)
+    -> count();
+
+    // init process test
+    //*******if null data -> create table from table mk_steps ******
+    if ($found == 0) {
+        // Create init process
+        $this -> smart_init_mode_insert_data($mk_list_id, $leader_id);           
+    }
+    //............ Analysis .......................
+        // test init mode and show only first radiobutton
+        // test init Mode included
+        $this -> smart_init_mode_show_only_first_radiobutton($mk_list_id, $leader_id);
+
+        // Move mode show default value -> number field & radiobutton display
+        // Test not init mode included
+        $this ->  smart_move_mode_display_number_fields_and_radiobuttons($mk_list_id, $leader_id);
+
+    // get info from  mk_steps join users_stepler info //$mk_list_id, $leader_id, $caller_id
+/*     $sub_step_info = DB::table('mk_steps')
+    -> select('mk_steps.mk_list_id', 'mk_steps.step_num', 'mk_steps.stepler_id', 'users.name', 'users.position')
+    ->where('mk_steps.mk_list_id', $mk_list_id)
+    -> leftJoin ('users', function($q)
+            { $q->on('mk_steps.stepler_id', '=', 'users.id'); }
+        );
+     */
+    //......... Get data ....................
+    // The records defenetly exist
+    //Join data
+    //$result = MkUserStateStep::where('mk_list_id', $mk_list_id) -> get()-> sortBy('step_num');
+/*     $result_first = DB::table('mk_user_state_steps') // DB::raw('cc as is_allow_delete'),
+    -> select('mk_user_state_steps.*', DB::raw('IF (handle = 0 AND passed > 0, true, false) as is_visible_button_done'),
+    'mk_steps.action', 'mk_steps.description', 'mk_steps.duration', 'mk_steps.stepler_id')
+    -> join('mk_steps', function($q)
+    {
+        $q->on('mk_steps.mk_list_id', '=', 'mk_user_state_steps.mk_list_id')
+            ->on('mk_steps.step_num', '=', 'mk_user_state_steps.step_num');
+    })
+    -> where('mk_user_state_steps.mk_list_id', $mk_list_id)
+    -> where('mk_user_state_steps.user_id', $leader_id)
+    ->orderBy('step_num')
+    ; */
+
+    $result = DB::table('mk_user_state_steps') // DB::raw('cc as is_allow_delete'),
+    -> select('mk_user_state_steps.*', DB::raw('IF (handle = 0 AND passed > 0, true, false) as is_visible_button_done'),
+    'mk_steps.action', 'mk_steps.description', 'mk_steps.duration', 'mk_steps.stepler_id',
+    DB::raw('users.name as info_stepler_name'), 
+    DB::raw('users.position as info_stepler_position'), 
+    DB::raw('concat("'.$leader_id.'") as info_query_leader_id'),
+    DB::raw('concat("'.$caller_id.'") as info_query_caller_id'),
+    DB::raw("
+    IF (mk_steps.stepler_id IS NULL, false, true) as info_is_stepler_step
+    "),
+    )
+    -> join('mk_steps', function($q) //$mk_list_id, $leader_id, $caller_id
+    { 
+        $q->on('mk_steps.mk_list_id', '=', 'mk_user_state_steps.mk_list_id')
+            ->on('mk_steps.step_num', '=', 'mk_user_state_steps.step_num');
+    })
+    -> where('mk_user_state_steps.mk_list_id', $mk_list_id)
+    -> where('mk_user_state_steps.user_id', $leader_id)
+    ->orderBy('step_num')
+    -> leftJoin ('users', function($q)
+            { $q->on('mk_steps.stepler_id', '=', 'users.id'); }
+        );
+    ;
+    //-> get()
+    //-> sortBy('step_num');
+
+    //............. Response part ...................
+    //$result = $result;
+    //$result = $result->get();
+    $result = $result->get();
+    if ($result) {
+        $response = [
+            "success" => true,
+            'message' => $result
+        ];
+        return response($response, 201);
+    } else {
+        $response = [
+            "success" => false,
+            'message' => 'Error mk_user_state_steps'
+        ];
+        return response($response, 400);
+    }
+
+
+}
+//==== var only user =======
+    public function mk_user_state_steps_get_smart3($mk_list_id, $user_id) //$mk_list_id, $user_id
     {   
         /* Algoritm:
             if null data -> create table from table mk_steps
             if no moves -> it is initial state -> hide all radiobutton except the first
         */
+        //test type of user
+        //It allow to represent steps for leaders and steplers
+        $isLeader = MkTeam::where('mk_list_id', $mk_list_id)
+        ->where('user_id', $user_id)
+        ->count();
+        if (!$isLeader) {
+            $response = [
+                "success" => false,
+                'message' => 'Wrong Leader'
+            ];
+            return response($response, 400);
+        }
+    
+/*         $isStepler = MkStep::where('mk_list_id', $mk_list_id)
+        ->where('stepler_id', $user_id)
+        ->count();
+
+        if (!$isLeader && !$isStepler) {
+            $response = [
+                "success" => false,
+                'message' => 'Wrong User'
+            ];
+            return response($response, 400);
+        } */
 
         $found = MkUserStateStep::where('mk_list_id', $mk_list_id) 
         -> where('user_id', $user_id)
@@ -74,7 +272,7 @@ class UserStepActionController extends Controller
 
             // Move mode show default value -> number field & radiobutton display
             // Test not init mode included
-            $this ->  smart_move_mode_display_nmber_fields_and_radiobuttons($mk_list_id, $user_id);
+            $this ->  smart_move_mode_display_number_fields_and_radiobuttons($mk_list_id, $user_id);
 
         //......... Get data ....................
         // The records defenetly exist
@@ -89,10 +287,11 @@ class UserStepActionController extends Controller
         -> where('mk_user_state_steps.mk_list_id', $mk_list_id)
         -> where('mk_user_state_steps.user_id', $user_id)
         -> get(['mk_user_state_steps.*',
-        'mk_steps.action', 'mk_steps.description', 'mk_steps.duration' ])
+        'mk_steps.action', 'mk_steps.description', 'mk_steps.duration', 'mk_steps.stepler_id' ])
         -> sortBy('step_num');
 
         //............. Response part ...................
+        //$result = $isLeader->get();
         if ($result) {
             $response = [
                 "success" => true,
@@ -122,6 +321,8 @@ class UserStepActionController extends Controller
         //Insert data to the table
         $result = MkUserStateStep::insert($result); 
     } 
+
+    
     private function smart_init_mode_show_only_first_radiobutton($mk_list_id, $user_id){
         //....test move action....
         $result = UserStepMove::where('mk_list_id', $mk_list_id)
@@ -136,7 +337,7 @@ class UserStepActionController extends Controller
         } 
 
     }
-    private function smart_move_mode_display_nmber_fields_and_radiobuttons($mk_list_id, $user_id){
+    private function smart_move_mode_display_number_fields_and_radiobuttons($mk_list_id, $user_id){
         //....test move action....
         $result = UserStepMove::where('mk_list_id', $mk_list_id)
         -> where('user_id', $user_id)

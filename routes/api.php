@@ -27,6 +27,7 @@ Route::delete('/mk_list_delete_all_steps/{mk_list_id}', [MkListController::class
 Route::post('/mk_list_edit_mk', [MkListController::class, 'mk_list_edit_mk']);
 Route::get('/mk_list_import_steps/{mk_list_id_tx}/{mk_list_id_rx}', [MkStepController::class, 'mk_list_import_steps']);
 Route::get('/mk_list_join_users_steps/{mk_list_id}', [MkStepController::class, 'mk_list_join_users_steps']);
+Route::get('/mk_list_steplers/{mk_list_id}', [MkListController::class, 'mk_list_steplers']);
 Route::get('/mk_list_xd', [MkListController::class, 'mk_list_xd']);
 
 Route::get('/mk_step_show/{mk_list_id}', [MkStepController::class, 'mk_step_show']);
@@ -40,7 +41,8 @@ Route::delete('/mk_team/{mk_list_id}', [MkTeamController::class, 'destroy']);
 Route::post('/mk_user_steps_move', [UserStepActionController::class, 'store_mk_user_steps_move']);
 Route::get('/mk_user_is_initial/{mk_list_id}/{user_id}', [UserStepActionController::class, 'mk_user_is_initial']);
 Route::post('/mk_user_state_steps_initial', [UserStepActionController::class, 'mk_user_state_steps_initial']);
-Route::get('/mk_user_state_steps_get_smart/{mk_list_id}/{user_id}', [UserStepActionController::class, 'mk_user_state_steps_get_smart']);
+//Route::get('/mk_user_state_steps_get_smart/{mk_list_id}/{leader_id}', [UserStepActionController::class, 'mk_user_state_steps_get_smart']);
+Route::get('/mk_user_state_steps_get_smart/{mk_list_id}/{leader_id}/{caller_id}', [UserStepActionController::class, 'mk_user_state_steps_get_smart']);
 Route::get('/mk_user_state_steps_get/{mk_list_id}/{user_id}', [UserStepActionController::class, 'mk_user_state_steps_get']);
 Route::post('/mk_user_state_steps_update', [UserStepActionController::class, 'mk_user_state_steps_update']);
 Route::post('/mk_user_steps_failed', [UserStepActionController::class, 'mk_user_steps_failed']);

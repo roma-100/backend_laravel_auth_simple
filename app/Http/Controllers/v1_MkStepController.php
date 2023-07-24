@@ -272,21 +272,29 @@ class MkStepController extends Controller
 //======= start Additional Group info=====
 
         $subquery_mk_team= DB::table('mk_teams')
-            ->orderBy('date_start')
             ->select('*',
             DB::raw("CONCAT(
-                '\'date_start\':\'', IF (date_start IS NULL, 'null', date_start), '\', \'items\':', items, ', \'role\':\'', role, '\', \'user_id\':', user_id
+                'date_start:', date_start, '#items:', items, '#role:', role, '#user_id:', user_id, '#'
                 ) AS info_mk_teams"))
             ->where('mk_list_id', $mk_list_id);
 
-        $subquery_state_info = DB::table('mk_user_state_steps')
-        ->where('mk_list_id', $mk_list_id)
-        ->select('mk_list_id', 'user_id', 'step_num'
+            $subquery_state_info = DB::table('mk_user_state_steps')
+            ->where('mk_list_id', $mk_list_id)
+            ->select('mk_list_id', 'user_id', 'step_num'
 
-        , DB::raw("CONCAT(', ', '\'sum_handle\':', handle , ', \'handle_at\':\'', IF (handle_at IS NULL, 'null', handle_at), '\'') as info_mk_user_state_steps")
-            ) 
-        ;
+            , DB::raw("CONCAT('#sum_handle:', handle , '#handle_at:', IF (handle_at IS NULL, 'null', handle_at), '#') as info_mk_user_state_steps")
+                )
+            ;
 
+/*         $subquery_state_info = DB::table('mk_user_state_steps')
+            ->where('mk_list_id', $mk_list_id)
+            ->select('mk_list_id', 'user_id', 'step_num'
+
+            , DB::raw("CONCAT('#sum_handle:', SUM(handle) , '#') as info_mk_user_state_steps")
+                )
+            ->groupBy('mk_list_id')
+            ->groupBy('step_num')
+            ->groupBy('user_id'); */
 
         $query_info_users_team_state_of_leaders= DB::table('users')
             -> joinSub($subquery_mk_team,'mk_teams',function($join){
@@ -295,13 +303,17 @@ class MkStepController extends Controller
                 $join->on('users.id', '=', 'mk_user_state_steps.user_id'); })  
 
             ->select('mk_teams.mk_list_id', 'mk_user_state_steps.step_num',
-            DB::raw('concat("{", 
-                group_concat(mk_teams.info_mk_teams, 
-                    mk_user_state_steps.info_mk_user_state_steps,
-                    concat(", \'user_name\':\'", users.name, "\'")
-                  SEPARATOR "}#{"),
-                "}"
-                ) as row_info'))
+            DB::raw('concat("&&&", 
+                group_concat(mk_user_state_steps.info_mk_user_state_steps,
+                    mk_teams.info_mk_teams, users.name 
+                    SEPARATOR "@")
+                ) as info'))
+
+/*             ->select('mk_teams.mk_list_id', 'mk_user_state_steps.step_num',
+            DB::raw('group_concat(mk_user_state_steps.info_mk_user_state_steps,
+                mk_teams.info_mk_teams, users.name 
+                SEPARATOR "@") as info')) */
+
             -> groupBy('mk_teams.mk_list_id')
             -> groupBy('mk_user_state_steps.step_num');
 
@@ -314,10 +326,10 @@ class MkStepController extends Controller
         -> leftJoinSub($query_info_users_team_state_of_leaders,'query_info_users_team_state_of_leaders',function($join){
             $join->on('mk_steps.mk_list_id', '=', 'query_info_users_team_state_of_leaders.mk_list_id')
             ->on('mk_steps.step_num', '=', 'query_info_users_team_state_of_leaders.step_num'); })
-            ->select(['mk_steps.*', 'query_info_users_team_state_of_leaders.row_info']) 
+            ->select(['mk_steps.*', 'query_info_users_team_state_of_leaders.info']) 
         ;
 
-        //$r =  $subquery_mk_team->get();
+        //$r =  $subquery_state_info->get();
         $r =  $result->get();
         if (empty($r)) {
             $response = [

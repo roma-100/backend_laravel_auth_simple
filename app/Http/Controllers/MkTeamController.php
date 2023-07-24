@@ -86,9 +86,9 @@ class MkTeamController extends Controller
         }         
 
         //If data exist
-        $result = MkTeam::where('mk_list_id', $mk_list_id)->
-        join('users', 'users.id', '=', 'mk_teams.user_id')->
-        get(['mk_teams.mk_list_id', 'mk_teams.user_id', 'mk_teams.items','mk_teams.role', 'users.name']);
+        $result = MkTeam::where('mk_list_id', $mk_list_id)
+        ->join('users', 'users.id', '=', 'mk_teams.user_id')
+        ->get(['mk_teams.mk_list_id', 'mk_teams.user_id', 'mk_teams.items','mk_teams.role', 'users.name', 'date_start']);
 
         $response = [
                  "success" => true,

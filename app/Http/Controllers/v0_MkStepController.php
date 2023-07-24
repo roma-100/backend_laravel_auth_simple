@@ -263,62 +263,37 @@ class MkStepController extends Controller
     public function mk_list_join_users_steps($mk_list_id)
     {
         //get join users date from mk_user_state_steps
+
         $this->mk_list_users_state_steps_to_table_steps($mk_list_id);
+/*         $query_users_steps = DB::table('mk_user_state_steps')
+        -> select('mk_list_id', 'step_num', 
+                    DB::raw('SUM(handle) as sum_handle'), 
+                    DB::raw('SUM(passed) as sum_passed'), 
+                    DB::raw('SUM(failed) as sum_failed'),
+                    DB::raw('SUM(done) as sum_done'))
+        ->where('mk_list_id', $mk_list_id)
+        ->groupBy('mk_list_id','step_num');
+
+        $result = MkStep::leftJoinSub($query_users_steps,'mk_user_state_steps',function($join){
+            $join->on('mk_steps.mk_list_id','=','mk_user_state_steps.mk_list_id')
+            ->on('mk_steps.step_num','=','mk_user_state_steps.step_num');
+        })
+        ->where('mk_steps.mk_list_id', $mk_list_id)
+        ->select('mk_steps.*', 'sum_handle', 'sum_passed', 'sum_failed', 'sum_done')
+        //->get();
+        ->update(['tmp_handle' => DB::raw("IF (sum_handle IS NULL, 0, sum_handle)"),
+                  'tmp_passed' => DB::raw("IF (sum_passed IS NULL, 0, sum_passed)"),
+                  'tmp_failed' => DB::raw("IF (sum_failed IS NULL, 0, sum_failed)"),
+                  'tmp_done' => DB::raw("IF (sum_done IS NULL, 0, sum_done)"),
+        ]); */
 
         //echo "<pre>"; print_r($result); echo "</pre>";
 
-
-
-//======= start Additional Group info=====
-
-        $subquery_mk_team= DB::table('mk_teams')
-            ->orderBy('date_start')
-            ->select('*',
-            DB::raw("CONCAT(
-                '\'date_start\':\'', IF (date_start IS NULL, 'null', date_start), '\', \'items\':', items, ', \'role\':\'', role, '\', \'user_id\':', user_id
-                ) AS info_mk_teams"))
-            ->where('mk_list_id', $mk_list_id);
-
-        $subquery_state_info = DB::table('mk_user_state_steps')
-        ->where('mk_list_id', $mk_list_id)
-        ->select('mk_list_id', 'user_id', 'step_num'
-
-        , DB::raw("CONCAT(', ', '\'sum_handle\':', handle , ', \'handle_at\':\'', IF (handle_at IS NULL, 'null', handle_at), '\'') as info_mk_user_state_steps")
-            ) 
-        ;
-
-
-        $query_info_users_team_state_of_leaders= DB::table('users')
-            -> joinSub($subquery_mk_team,'mk_teams',function($join){
-                $join->on('users.id', '=', 'mk_teams.user_id'); })
-            -> joinSub($subquery_state_info,'mk_user_state_steps',function($join){
-                $join->on('users.id', '=', 'mk_user_state_steps.user_id'); })  
-
-            ->select('mk_teams.mk_list_id', 'mk_user_state_steps.step_num',
-            DB::raw('concat("{", 
-                group_concat(mk_teams.info_mk_teams, 
-                    mk_user_state_steps.info_mk_user_state_steps,
-                    concat(", \'user_name\':\'", users.name, "\'")
-                  SEPARATOR "}#{"),
-                "}"
-                ) as row_info'))
-            -> groupBy('mk_teams.mk_list_id')
-            -> groupBy('mk_user_state_steps.step_num');
-
-
-//======= end Additional Group info=====
-//DB::raw('SUM(items) as stepler_sum_items_step_rx') , DB::raw("SUM(handle) as sum_handle")
-
         // get fresh data steps
-        $result = MkStep::where('mk_steps.mk_list_id', $mk_list_id)
-        -> leftJoinSub($query_info_users_team_state_of_leaders,'query_info_users_team_state_of_leaders',function($join){
-            $join->on('mk_steps.mk_list_id', '=', 'query_info_users_team_state_of_leaders.mk_list_id')
-            ->on('mk_steps.step_num', '=', 'query_info_users_team_state_of_leaders.step_num'); })
-            ->select(['mk_steps.*', 'query_info_users_team_state_of_leaders.row_info']) 
-        ;
-
-        //$r =  $subquery_mk_team->get();
-        $r =  $result->get();
+        $result = MkStep::where('mk_list_id', $mk_list_id)->get();
+        //->sortBy('step_num')
+        //->get();
+        $r =  $result;
         if (empty($r)) {
             $response = [
                 "success" => false,
@@ -337,7 +312,7 @@ class MkStepController extends Controller
 
     private function mk_list_users_state_steps_to_table_steps($mk_list_id){
         $query_users_steps = DB::table('mk_user_state_steps')
-        -> select('mk_list_id', 'step_num',
+        -> select('mk_list_id', 'step_num', 
                     DB::raw('SUM(handle) as sum_handle'), 
                     DB::raw('SUM(passed) as sum_passed'), 
                     DB::raw('SUM(failed) as sum_failed'),
