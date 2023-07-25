@@ -78,7 +78,7 @@ class MkListController extends Controller
         }
     }
 
-    public function mk_list_complex2($user_id)
+    public function mk_list_complex($user_id)
     {
         //$user_id = 11;
         $role = DB::table('users') //select role
@@ -185,7 +185,7 @@ DB::raw('SUM(failed) as stat_sum_failed, SUM(handle) as stat_sum_handle, SUM(pas
     });     
     //select fields   
         $aFields = ['mk_lists.id','mk_lists.name','mk_lists.quantity','mk_lists.description',
-        'mk_lists.date_start', 'mk_lists.date_finish',
+        'mk_lists.date_start', 'mk_lists.date_finish', 'mk_lists.user_id',
         'mk_lists.active','mk_lists.created_at','mk_lists.updated_at',
         'stat_users','stat_steps','stat_moves','stat_sum_handle',
         'stat_sum_passed','stat_sum_failed','count_stepler_id',
@@ -201,7 +201,7 @@ DB::raw('SUM(failed) as stat_sum_failed, SUM(handle) as stat_sum_handle, SUM(pas
         ];
 
         $aGFields = ['mk_lists.id','mk_lists.name','mk_lists.quantity','mk_lists.description',
-        'mk_lists.date_start', 'mk_lists.date_finish',
+        'mk_lists.date_start', 'mk_lists.date_finish', 'mk_lists.user_id',
         'mk_lists.active','mk_lists.created_at','mk_lists.updated_at',
         'stat_users','stat_steps','stat_moves','stat_sum_handle',
         'stat_sum_passed','stat_sum_failed','count_stepler_id',
@@ -247,7 +247,7 @@ if ($role == 'admin'){
     }        
      
 
-    public function mk_list_complex($user_id)
+    public function mk_list_complex1($user_id)
     {
         //$user_id = 11;
         $role = DB::table('users') //select role
