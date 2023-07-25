@@ -78,7 +78,7 @@ class MkListController extends Controller
         }
     }
 
-    public function mk_list_complex($user_id)
+    public function mk_list_complex2($user_id)
     {
         //$user_id = 11;
         $role = DB::table('users') //select role
@@ -247,7 +247,7 @@ if ($role == 'admin'){
     }        
      
 
-    public function mk_list_complex1($user_id)
+    public function mk_list_complex($user_id)
     {
         //$user_id = 11;
         $role = DB::table('users') //select role
